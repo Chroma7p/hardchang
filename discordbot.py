@@ -4,15 +4,25 @@ import discord
 import os
 import asyncio
 from dotenv import load_dotenv
+from chatgpt import Chat,Role
+
 
 load_dotenv(".env")
 
 # デプロイ先の環境変数にトークンをおいてね
 APITOKEN = os.environ["DISCORD_BOT_TOKEN"]
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+
+chat=Chat(OPENAI_API_KEY)
+
 # botのオブジェクトを作成(コマンドのトリガーを!に)
 bot = commands.Bot(command_prefix="/", intents=discord.Intents.all())
 
+with open("hard_takanawa.txt","r") as f:
+    prompt=f.read()
 
+
+chat.add(prompt,Role.system)
 @bot.tree.command(name="test", description="スラッシュコマンドが機能しているかのテスト用コマンド")
 async def test(interaction: discord.Interaction):
     print("test")
@@ -28,25 +38,16 @@ async def on_ready():
 
 # メッセージ編集時に発動(編集前(before)と後(after)のメッセージを送信)
 @bot.event
-async def on_message_edit(before, after):
-    txt = f"{before.author} がメッセージを編集しました！\nbefore:```{before.content}```\nafter:```{after.content}```"
-    await after.add_reaction()
-    await before.channel.send(txt)
-
-
-# メッセージ削除時に発動(削除されたメッセージを送信)
-@bot.event
-async def on_message_delete(message):
-    txt = f"{message.channel}:{message.author} がメッセージを削除しました！\n```{message.content}```"
-    await message.author.send(txt)
-    await message.channel.send(txt)
-
-
-@bot.event
-async def on_typing(channel, user, when):
-    txt = f"{user} がメッセージを入力しています！"
-    await channel.send(txt)
-
+async def on_message(message:discord.Message):
+    if message.author.bot:
+        return
+    await message.channel.send(chat.send(message.content).content)
+    
+@bot.command()
+async def reset(ctx):
+    chat.reset()
+    chat.add(prompt,Role.system)
+    await ctx.send("リセットしたよー")
 
 async def main():
     # コグのフォルダ
